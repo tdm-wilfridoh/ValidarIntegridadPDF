@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net6.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="iTextSharp" Version="5.5.13.3" />
+    <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="6.0.0" />
+    <PackageReference Include="NPOI" Version="2.7.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="Tdm.APILF.Domain">
+      <HintPath>..\..\Desarrollos\APILF\TDM.APILF\Tdm.APILF.Domain\bin\Debug\netcoreapp3.1\Tdm.APILF.Domain.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
+</Project>
