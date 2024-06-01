@@ -7,9 +7,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Tdm.APILF.Domain.Models;
 using static iTextSharp.text.pdf.AcroFields;
-using Document = Tdm.APILF.Domain.Models.Document;
+using Tdm.APILF_Net6.Domain;
+using Document = Tdm.APILF_Net6.Domain.Models.Document;
 
 namespace ValidarIntegridadPDF.ExtensionsMethods
 {
@@ -51,26 +51,36 @@ namespace ValidarIntegridadPDF.ExtensionsMethods
 
             // Encabezado "NOMBRE"
             ICell encabezadoNombre = row.CreateCell(1);
-            encabezadoNombre.SetCellValue("NOMBRE");
+            encabezadoNombre.SetCellValue("NOMBRE DEL DOCUMENTO");
             //Apply the style
             //encabezadoNombre.CellStyle = style;
 
             // Encabezado "RUTA"
             ICell encabezadoRuta = row.CreateCell(2);
-            encabezadoRuta.SetCellValue("RUTA");
+            encabezadoRuta.SetCellValue("RUTA EN EL REPOSITORIO");
             //Apply the style
             //encabezadoRuta.CellStyle = style;
 
+            // Encabezado "TAMAÑO DEL DOCUMENTO"
+            ICell encabezadoTamanoDocumento = row.CreateCell(3);
+            encabezadoTamanoDocumento.SetCellValue("TAMAÑO DEL DOCUMENTO");
+            //Apply the style
+            //encabezadoFechaCreacion.CellStyle = style;
+
             // Encabezado "FECHA DE CREACIÓN"
-            ICell encabezadoFechaCreacion = row.CreateCell(3);
+            ICell encabezadoFechaCreacion = row.CreateCell(4);
             encabezadoFechaCreacion.SetCellValue("FECHA DE CREACIÓN");
             //Apply the style
             //encabezadoFechaCreacion.CellStyle = style;
 
+            // Encabezado "OBSERVACIÓN"
+            ICell encabezadoObservacion = row.CreateCell(5);
+            encabezadoObservacion.SetCellValue("OBSERVACIÓN");
+
             return ws;
         }
 
-        public static void AdicionarFila(this ISheet ws, Document document)
+        public static void AdicionarFila(this ISheet ws, Document document, string comments)
         {
 
             // create a new row
@@ -86,8 +96,14 @@ namespace ValidarIntegridadPDF.ExtensionsMethods
             ICell celdaEncontrado = row.CreateCell(2);
             celdaEncontrado.SetCellValue(document.Path);
 
-            ICell celdaFolderCode = row.CreateCell(3);
+            ICell celdaDocumentSize = row.CreateCell(3);
+            celdaDocumentSize.SetCellValue(document.DocumentSize);
+
+            ICell celdaFolderCode = row.CreateCell(4);
             celdaFolderCode.SetCellValue(document.CreationDate.ToString());
+
+            ICell celdaComments = row.CreateCell(5);
+            celdaComments.SetCellValue(comments);
         }
 
         public static void GuardarReporte(this IWorkbook wb, string path)
@@ -99,6 +115,8 @@ namespace ValidarIntegridadPDF.ExtensionsMethods
         }
 
         public static bool ExistenArchivosCorruptos(this ISheet ws) => numeroFila > 0;
+
+        public static int TotalArchivosCorruptos(this ISheet ws) => numeroFila;
     }
 
 }

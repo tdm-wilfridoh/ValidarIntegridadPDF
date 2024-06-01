@@ -9,14 +9,27 @@
 
   <ItemGroup>
     <PackageReference Include="iTextSharp" Version="5.5.13.3" />
+    <PackageReference Include="log4net" Version="2.0.17" />
     <PackageReference Include="Microsoft.AspNet.WebApi.Client" Version="6.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Log4Net.AspNetCore" Version="8.0.0" />
     <PackageReference Include="NPOI" Version="2.7.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <Reference Include="Tdm.APILF.Domain">
-      <HintPath>..\..\Desarrollos\APILF\TDM.APILF\Tdm.APILF.Domain\bin\Debug\netcoreapp3.1\Tdm.APILF.Domain.dll</HintPath>
+    <Reference Include="Tdm.APILF_Net6.Domain">
+      <HintPath>..\..\Desarrollos\APILF_Net6\Tdm.APILF_Net6.Domain\bin\Debug\net6.0\Tdm.APILF_Net6.Domain.dll</HintPath>
     </Reference>
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="config.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="log4net.config">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
 </Project>

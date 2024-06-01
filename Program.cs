@@ -1,54 +1,96 @@
 ﻿using iTextSharp.text.pdf;
-using Newtonsoft.Json;
-using NPOI.HSSF.Record;
 using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
-using System.Reflection.Metadata;
-using System.Reflection.PortableExecutable;
-using Tdm.APILF.Application.Services;
-using Tdm.APILF.Domain.Models;
+using Tdm.APILF_Net6.Domain.Models;
 using ValidarIntegridadPDF.ExtensionsMethods;
-using Document = Tdm.APILF.Domain.Models.Document;
+using Document = Tdm.APILF_Net6.Domain.Models.Document;
+using log4net.Config;
+using log4net;
+using Microsoft.Extensions.Configuration;
+using ValidarIntegridadPDF.Models;
+using NPOI.SS.Formula.Functions;
 
 internal class Program
 {
     private static HttpClient client = new HttpClient();
 
-    private static string exportPath = "C:\\WorkSpace\\TGI\\ValidarIntegridadPDF\\bin\\docs";
+    private static string? exportPath;
 
-    private static string reportPath = "C:\\WorkSpace\\TGI\\ValidarIntegridadPDF\\bin\\report\\Archivos_Corruptos.xlsx";
+    private static string? reportPath;
 
+    private static string? reportName;
+
+    private static ILog log = LogManager.GetLogger(typeof(Program));
+
+    private static API _api;
+    private static SearchDates _searchDates;
 
     private static void Main(string[] args)
     {
-        client.BaseAddress = new Uri("https://localhost:44395/");
-        client.DefaultRequestHeaders.Accept.Clear();
-        client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-        client.Timeout = new TimeSpan(1, 0, 0);
+        try
+        {
 
-        InitAsync().GetAwaiter().GetResult();
+            XmlConfigurator.Configure(new FileInfo("log4net.config"));
+
+            var builder = new ConfigurationBuilder()
+                        .SetBasePath(Directory.GetCurrentDirectory())
+                        .AddJsonFile("config.json", optional: true, reloadOnChange: true);
+
+            IConfiguration configuration = builder.Build();
+            _api = configuration.GetSection("API").Get<API>();
+            _searchDates = configuration.GetSection("SearchDates").Get<SearchDates>();
+
+            exportPath = configuration.GetSection("ExportPath").Value;
+            reportPath = configuration.GetSection("ReportPath").Value;
+            reportName = configuration.GetSection("ReportName").Value;
+            reportName = String.Format(reportName, DateTime.Now.ToString("dd/MM/yyyy").Replace('/', '-'));
+
+
+
+            client.BaseAddress = new Uri(_api.APIBaseAddress);
+            client.DefaultRequestHeaders.Accept.Clear();
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+            client.Timeout = new TimeSpan(1, 0, 0);
+
+            InitAsync().GetAwaiter().GetResult();
+        }
+        catch (Exception ex)
+        {
+            log.Error("Error general: " + ex.Message);
+        }
         Console.ReadLine();
     }
 
-    private static async Task InitAsync()
+    static async Task InitAsync()
     {
+        log.Debug("------------ Iniciando proceso ------------");
+
+        if (Directory.Exists(exportPath))
+            DeleteExportPath();
+
+
+        Directory.CreateDirectory(exportPath);
+
+
         SearchByCreationDateRequest request = new SearchByCreationDateRequest()
         {
-            InitialDate = "2018/06/22 00:00:00",
-            FinalDate = "2018/06/22 15:00:00"
+            InitialDate = _searchDates.Initial,
+            FinalDate = _searchDates.Final
         };
 
-        var response = await client.PostAsJsonAsync("api/ApiLF/SearchByCreationDate", request);
+        log.Debug($"Consultando al repositorio: Fecha inicial = {_searchDates.Initial},  Fecha final = {_searchDates.Final}");
+        var response = await client.PostAsJsonAsync(_api.URISearchRequest, request);
         List<Document> documentos = new List<Document>();
 
         if (response.IsSuccessStatusCode)
         {
             var result = await response.Content.ReadAsAsync<ApiResponse<SearchResult>>();
-            if(result.Succeded)
+            if (result.Succeded)
             {
                 documentos = result.Data.Documents;
+                log.Debug($"Total de documentos encontrados: {documentos.Count}");
                 await ExportarDocumentosAsync(documentos);
             }
             else
@@ -57,125 +99,130 @@ internal class Program
 
     }
 
-    private static async Task ExportarDocumentosAsync(List<Document> docs)
+    static async Task ExportarDocumentosAsync(List<Document> docs)
     {
         int i = 1;
-
-        //for (int i = 0; i< docs.Count; i++)
-        //{
-        //    if (i+1 % 10 == 0)
-        //        Thread.Sleep(1000);
-
-        //    var doc = docs[i];
-
-
-        //    var response = await client.GetAsync($"api/ApiLF/export/{doc.ID}");
-        //    if (response.IsSuccessStatusCode)
-        //    {
-
-        //        var result = await response.Content.ReadAsAsync<ApiResponse<ExportResult>>();
-
-
-        //        //if (i > 0 && docs[i-1].Name == doc.Name)
-
-        //        if (BuscarArchivo(result.Data.FileName))
-        //        {
-        //            /*Tamaño del nombre del documento*/
-        //            var lengthDocumentName = doc.Path.Split('\\').Last().Length;
-
-        //            /*Ruta en LF donde se encuentra el documento*/
-        //            var lfDirectory = doc.Path.Substring(1, doc.Path.Length - (lengthDocumentName + 2));
-
-        //            var newDirectory = $"{exportPath}\\{doc.Name}\\{lfDirectory}";
-        //            Directory.CreateDirectory(newDirectory);
-        //            File.WriteAllBytes($"{newDirectory}\\{result.Data.FileName}", result.Data.Stream);
-
-
-        //        }
-        //        else
-        //            File.WriteAllBytes($"{exportPath}\\{result.Data.FileName}", result.Data.Stream);
-
-        //    }
-        //}
 
         // create a new workbook
         IWorkbook wb = new XSSFWorkbook();
 
         ISheet ws = wb.CrearEncabezado();
 
-
-        foreach(var doc in docs)
+        log.Debug("Iniciando proceso de exportación de documentos y validación de integridad");
+        foreach (var doc in docs)
         {
-            if (i++ % 10 == 0)
-                Thread.Sleep(1000);
-
-            var response = await client.GetAsync($"api/ApiLF/export/{doc.ID}");
-
-            if (response.IsSuccessStatusCode)
+            try
             {
+                if (i++ % 10 == 0)
+                    Thread.Sleep(_api.SleepTime);
 
-                string filePath;
+                log.Debug($"==== Procesando {doc.ID} - {doc.Name} ====");
+                var response = await client.GetAsync($"{_api.URIExportRequest}/{doc.ID}");
 
-                var result = response.Content.ReadAsAsync<ApiResponse<ExportResult>>().Result;
-
-                if (!result.Succeded)
+                if (response.IsSuccessStatusCode)
                 {
-                    Console.WriteLine($"Error al exportar - ID {doc.ID}: {result.ErrorMessage}");
-                    continue;
-                }
 
-                //if (i > 0 && docs[i-1].Name == doc.Name)
+                    string filePath;
 
-                if (BuscarArchivo(result.Data.FileName))
-                {
-                    /*Tamaño del nombre del documento*/
-                    var lengthDocumentName = doc.Path.Split('\\').Last().Length;
+                    var result = response.Content.ReadAsAsync<ApiResponse<ExportResult>>().Result;
 
-                    /*Ruta en LF donde se encuentra el documento*/
-                    var lfDirectory = doc.Path.Substring(1, doc.Path.Length - (lengthDocumentName + 2));
+                    if (!result.Succeded)
+                    {
+                        Console.WriteLine($"Error al exportar - ID {doc.ID}: {result.ErrorMessage}");
+                        log.Error($"Error al exportar: {result.ErrorMessage}");
+                        ws.AdicionarFila(doc, result.ErrorMessage);
+                        continue;
+                    }
 
-                    var newDirectory = $"{exportPath}\\{doc.Name}\\{lfDirectory}";
-                    Directory.CreateDirectory(newDirectory);
-                    filePath = $"{newDirectory}\\{result.Data.FileName}";
-                    File.WriteAllBytes(filePath, result.Data.Stream);
+                    //if (i > 0 && docs[i-1].Name == doc.Name)
 
+                    if (BuscarArchivo(exportPath, result.Data.FileName) > 0)
+                    {
+                        /*Tamaño del nombre del documento*/
+                        var lengthDocumentName = doc.Path.Split('\\').Last().Length;
 
+                        /*Ruta en LF donde se encuentra el documento*/
+                        var lfDirectory = doc.Path.Substring(1, doc.Path.Length - (lengthDocumentName + 2));
+
+                        var newDirectory = $"{exportPath}\\{doc.Name}\\{lfDirectory}";
+                        Directory.CreateDirectory(newDirectory);
+                        filePath = $"{newDirectory}\\{result.Data.FileName}";
+                        File.WriteAllBytes(filePath, result.Data.Stream);
+                    }
+                    else
+                    {
+                        filePath = $"{exportPath}\\{result.Data.FileName}";
+                        File.WriteAllBytes(filePath, result.Data.Stream);
+                        log.Debug("Archivo exportado correctamente");
+                    }
+
+                    bool integrity = ValidarIntegridad(filePath);
+
+                    if (!integrity)
+                    {
+                        ws.AdicionarFila(doc, "Error de integridad");
+                    }
+
+                    DeleteFile(filePath);
+
+                    log.Debug("Prueba de integridad: " + (integrity ? "Aprobada" : "No aprobada"));
                 }
                 else
                 {
-                    filePath = $"{exportPath}\\{result.Data.FileName}";
-                    File.WriteAllBytes(filePath, result.Data.Stream);
+                    log.Error($"Error al requerir la API: {response.ReasonPhrase}");
                 }
 
-                if (!ValidarIntegridad(filePath))
-                {
-                    ws.AdicionarFila(doc);
-                }
-
+                log.Debug($"==== Fin de proceso {doc.ID} - {doc.Name}  ====");
             }
+            catch(Exception e)
+            {
+                ws.AdicionarFila(doc, e.Message);
+                log.Error($"Export error {doc.ID} - {doc.Name}: " + e.Message);
+            }
+
         }
 
-        if(ws.ExistenArchivosCorruptos())
+        DeleteExportPath();
+
+        log.Debug("Fin proceso de exportación de documentos y validación de integridad");
+
+        var corruptFiles = ws.TotalArchivosCorruptos();
+
+        log.Debug($"Número de documentos procesados: {i-1}");
+
+        log.Debug($"Cantidad de archivos corruptos: {corruptFiles}");
+
+        if (corruptFiles > 0)
         {
-            wb.GuardarReporte(reportPath);
+            var numberDocuments = BuscarArchivo(reportPath, reportName + "*");
+            wb.GuardarReporte(reportPath + reportName + (numberDocuments > 0 ? $"({numberDocuments})" : "") + ".xlsx");
+            log.Debug("Archivo de reporte generado correctamente");
         }
+
     }
 
-    //Validar si existe un documento con el mismo nombre en la ruta de exportación
-    private static bool BuscarArchivo(string file) => Directory.GetFiles(exportPath, file, SearchOption.TopDirectoryOnly).Length > 0;
+    //Validar cuántos documentos "fileName" existen con el mismo nombre en la ruta "path". Si no existen duplicados devuleve 0
+    static int BuscarArchivo(string path, string fileName) => Directory.GetFiles(path, fileName, SearchOption.TopDirectoryOnly).Length;
 
-    private static bool ValidarIntegridad(string file)
+
+    static bool ValidarIntegridad(string file)
     {
         try
         {
             using PdfReader reader = new PdfReader(file);
         }
-        catch(Exception e)
+        catch (Exception e)
         {
             Console.WriteLine($"Error Validar Integridad  -  {file}: {e.Message}");
+            log.Error($"Error al validar integridad: {e.Message}");
             return false;
         }
 
         return true;
     }
+
+    static void DeleteFile(string file) => File.Delete(file);
+
+    static void DeleteExportPath() => Directory.Delete(exportPath, true);
+
 }
