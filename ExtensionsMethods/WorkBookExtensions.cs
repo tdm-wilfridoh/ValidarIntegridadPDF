@@ -1,5 +1,4 @@
-﻿using iTextSharp.text;
-using NPOI.HSSF.Util;
+﻿using NPOI.HSSF.Util;
 using NPOI.SS.UserModel;
 using Org.BouncyCastle.Utilities.Collections;
 using System;
@@ -7,7 +6,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using static iTextSharp.text.pdf.AcroFields;
 using Tdm.APILF_Net6.Domain;
 using Document = Tdm.APILF_Net6.Domain.Models.Document;
 

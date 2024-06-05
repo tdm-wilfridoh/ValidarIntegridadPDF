@@ -5,12 +5,12 @@
   //},
 
   "SearchDates": {
-    "Initial": "2024/05/20 00:00:00",
-    "Final": "2024/05/27 23:59:59"
+    "Initial": "2024/05/20 10:58:43",
+    "Final": "2024/05/20 10:58:43"
   },
   "API": {
-    "APIBaseAddress": "https://localhost:44395/", //API de desarrollo
-    //"APIBaseAddress": "http://localhost:7010/", //API Publicada
+    //"APIBaseAddress": "https://localhost:44395/", //API de desarrollo
+    "APIBaseAddress": "http://localhost:7010/", //API Publicada
     "URISearchRequest": "api/ApiLF/SearchByCreationDate",
     "URIExportRequest": "api/ApiLF/export",
     "SleepTime": 1500

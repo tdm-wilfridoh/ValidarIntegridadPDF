@@ -1,5 +1,4 @@
-﻿using iTextSharp.text.pdf;
-using NPOI.SS.UserModel;
+﻿using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
@@ -11,6 +10,7 @@ using log4net;
 using Microsoft.Extensions.Configuration;
 using ValidarIntegridadPDF.Models;
 using NPOI.SS.Formula.Functions;
+using iText.Kernel.Pdf;
 
 internal class Program
 {
@@ -94,7 +94,7 @@ internal class Program
                 await ExportarDocumentosAsync(documentos);
             }
             else
-                await Console.Out.WriteLineAsync("Error la consultar la API: " + result.ErrorMessage);
+                await Console.Out.WriteLineAsync("Error al consultar la API: " + result.ErrorMessage);
         }
 
     }
